@@ -8,6 +8,8 @@ const { authenticate } = require('../middleware/auth');
 const SSEManager = require('../lib/SSEManager');
 const Notifications = require('../db/models/Notifications');
 const mongoose = require('mongoose');
+const validate = require('../middleware/validator');
+const commentsValidation = require('../validations/comments.validation');
 
 // GET /api/comments
 router.get('/', async (req, res) => {
@@ -39,7 +41,7 @@ router.get('/:id/replies', async (req, res) => {
 });
 
 // POST /api/comments
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, validate(commentsValidation.create), async (req, res) => {
     try {
         req.body.userId = req.user._id;
         const comment = new Comments(req.body);
@@ -76,7 +78,7 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 // PUT /api/comments/:id
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authenticate, validate(commentsValidation.update), async (req, res) => {
     try {
         const comment = await Comments.findById(req.params.id);
         if (!comment) return errorResponse(res, ErrorCode.COMMENT_NOT_FOUND);
