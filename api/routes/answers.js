@@ -7,6 +7,8 @@ const { successResponse, errorResponse } = require('../lib/ResponseHelper');
 const { authenticate } = require('../middleware/auth');
 const SSEManager = require('../lib/SSEManager');
 const Notifications = require('../db/models/Notifications');
+const validate = require('../middleware/validator');
+const answersValidation = require('../validations/answers.validation');
 
 // GET /api/answers
 router.get('/', async (req, res) => {
@@ -37,7 +39,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/answers
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, validate(answersValidation.create), async (req, res) => {
     try {
         req.body.userId = req.user._id;
         const answer = new Answers(req.body);
@@ -69,7 +71,7 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 // PUT /api/answers/:id
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authenticate, validate(answersValidation.update), async (req, res) => {
     try {
         const answer = await Answers.findById(req.params.id);
         if (!answer) return errorResponse(res, ErrorCode.ANSWER_NOT_FOUND);

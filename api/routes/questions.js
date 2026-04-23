@@ -4,7 +4,9 @@ const Questions = require('../db/models/Questions');
 const ErrorCode = require('../lib/ErrorCode');
 const SuccessCode = require('../lib/SuccessCode');
 const { successResponse, errorResponse } = require('../lib/ResponseHelper');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
+const validate = require('../middleware/validator');
+const questionsValidation = require('../validations/questions.validation');
 
 // GET /api/questions
 router.get('/', async (req, res) => {
@@ -38,7 +40,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/questions
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, validate(questionsValidation.create), async (req, res) => {
     try {
         req.body.userId = req.user._id; // Zorunlu sahiplik
         const question = new Questions(req.body);
@@ -50,7 +52,7 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 // PUT /api/questions/:id
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authenticate, validate(questionsValidation.update), async (req, res) => {
     try {
         const question = await Questions.findById(req.params.id);
         if (!question) return errorResponse(res, ErrorCode.QUESTION_NOT_FOUND);

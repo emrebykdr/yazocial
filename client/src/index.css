@@ -1,0 +1,44 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@theme {
+  /* Soft Dark Tema + Deniz Mavisi */
+  --color-background: #050608; 
+  --color-surface: #0c0e12;
+  --color-surface2: #14171d;
+  --color-surfaceHover: #1d2128;
+  --color-border: #1d2128;
+
+  --color-textPrimary: #f0f1f3;
+  --color-textSecondary: #8892a0;
+
+  --color-primary: #0077b6;
+  --color-primaryHover: #0096c7;
+
+  --color-success: #10b981;
+  --color-danger: #f43f5e;
+
+  /* Ciddi Font Tanımlaması */
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-textPrimary antialiased min-h-screen selection:bg-primary/30 font-sans;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #1d2128;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2a2f3a;
+}

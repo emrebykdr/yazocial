@@ -6,11 +6,13 @@ const ErrorCode = require('../lib/ErrorCode');
 const SuccessCode = require('../lib/SuccessCode');
 const { successResponse, errorResponse } = require('../lib/ResponseHelper');
 const Logger = require('../lib/Logger');
+const validate = require('../middleware/validator');
+const authValidation = require('../validations/auth.validation');
 
 /**
  * POST /api/auth/register
  */
-router.post('/register', async (req, res) => {
+router.post('/register', validate(authValidation.register), async (req, res) => {
     try {
         const { username, email, password, firstName, lastName } = req.body;
 
@@ -48,7 +50,7 @@ router.post('/register', async (req, res) => {
 /**
  * POST /api/auth/login
  */
-router.post('/login', async (req, res) => {
+router.post('/login', validate(authValidation.login), async (req, res) => {
     try {
         const { identifier, password } = req.body; // identifier = username veya email olabilir
 
