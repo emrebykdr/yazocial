@@ -4,6 +4,7 @@ const Projects = require('../db/models/Projects');
 const ErrorCode = require('../lib/ErrorCode');
 const SuccessCode = require('../lib/SuccessCode');
 const { successResponse, errorResponse } = require('../lib/ResponseHelper');
+const { authenticate } = require('../middleware/auth');
 
 // GET /api/projects
 router.get('/', async (req, res) => {
@@ -34,8 +35,9 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/projects
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
     try {
+        req.body.userId = req.user._id;
         const project = new Projects(req.body);
         await project.save();
         successResponse(res, { statusCode: 201, ...SuccessCode.PROJECT_CREATED, data: project });
@@ -45,21 +47,33 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/projects/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
     try {
-        const project = await Projects.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        const project = await Projects.findById(req.params.id);
         if (!project) return errorResponse(res, ErrorCode.PROJECT_NOT_FOUND);
-        successResponse(res, { ...SuccessCode.PROJECT_UPDATED, data: project });
+
+        if (project.userId.toString() !== req.user._id.toString() && !['admin', 'moderator'].includes(req.user.role)) {
+            return errorResponse(res, ErrorCode.FORBIDDEN);
+        }
+
+        const updatedProject = await Projects.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        successResponse(res, { ...SuccessCode.PROJECT_UPDATED, data: updatedProject });
     } catch (error) {
         errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
     }
 });
 
 // DELETE /api/projects/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
     try {
-        const project = await Projects.findByIdAndDelete(req.params.id);
+        const project = await Projects.findById(req.params.id);
         if (!project) return errorResponse(res, ErrorCode.PROJECT_NOT_FOUND);
+
+        if (project.userId.toString() !== req.user._id.toString() && !['admin', 'moderator'].includes(req.user.role)) {
+            return errorResponse(res, ErrorCode.FORBIDDEN);
+        }
+
+        await Projects.findByIdAndDelete(req.params.id);
         successResponse(res, SuccessCode.PROJECT_DELETED);
     } catch (error) {
         errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);

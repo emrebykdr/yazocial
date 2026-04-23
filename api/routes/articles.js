@@ -4,6 +4,7 @@ const Articles = require('../db/models/Articles');
 const ErrorCode = require('../lib/ErrorCode');
 const SuccessCode = require('../lib/SuccessCode');
 const { successResponse, errorResponse } = require('../lib/ResponseHelper');
+const { authenticate } = require('../middleware/auth');
 
 // GET /api/articles
 router.get('/', async (req, res) => {
@@ -34,8 +35,9 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/articles
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
     try {
+        req.body.userId = req.user._id;
         const article = new Articles(req.body);
         await article.save();
         successResponse(res, { statusCode: 201, ...SuccessCode.ARTICLE_CREATED, data: article });
@@ -45,21 +47,33 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/articles/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
     try {
-        const article = await Articles.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        const article = await Articles.findById(req.params.id);
         if (!article) return errorResponse(res, ErrorCode.ARTICLE_NOT_FOUND);
-        successResponse(res, { ...SuccessCode.ARTICLE_UPDATED, data: article });
+
+        if (article.userId.toString() !== req.user._id.toString() && !['admin', 'moderator'].includes(req.user.role)) {
+            return errorResponse(res, ErrorCode.FORBIDDEN);
+        }
+
+        const updatedArticle = await Articles.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        successResponse(res, { ...SuccessCode.ARTICLE_UPDATED, data: updatedArticle });
     } catch (error) {
         errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
     }
 });
 
 // DELETE /api/articles/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
     try {
-        const article = await Articles.findByIdAndDelete(req.params.id);
+        const article = await Articles.findById(req.params.id);
         if (!article) return errorResponse(res, ErrorCode.ARTICLE_NOT_FOUND);
+
+        if (article.userId.toString() !== req.user._id.toString() && !['admin', 'moderator'].includes(req.user.role)) {
+            return errorResponse(res, ErrorCode.FORBIDDEN);
+        }
+
+        await Articles.findByIdAndDelete(req.params.id);
         successResponse(res, SuccessCode.ARTICLE_DELETED);
     } catch (error) {
         errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);

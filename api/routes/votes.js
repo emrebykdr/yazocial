@@ -3,11 +3,14 @@ const router = express.Router();
 const Votes = require('../db/models/Votes');
 const ErrorCode = require('../lib/ErrorCode');
 const { successResponse, errorResponse } = require('../lib/ResponseHelper');
+const { authenticate } = require('../middleware/auth');
 
 // POST /api/votes — toggle mantığı
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
     try {
-        const { userId, postType, postId, voteType } = req.body;
+        const { postType, postId, voteType } = req.body;
+        const userId = req.user._id;
+        
         const existingVote = await Votes.findOne({ userId, postType, postId });
         let scoreChange = 0;
 

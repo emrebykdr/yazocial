@@ -5,6 +5,9 @@ const UserBadges = require('../db/models/UserBadges');
 const ErrorCode = require('../lib/ErrorCode');
 const SuccessCode = require('../lib/SuccessCode');
 const { successResponse, errorResponse } = require('../lib/ResponseHelper');
+const { authenticate, authorize } = require('../middleware/auth');
+const SSEManager = require('../lib/SSEManager');
+const Notifications = require('../db/models/Notifications');
 
 // GET /api/badges
 router.get('/', async (req, res) => {
@@ -28,7 +31,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/badges
-router.post('/', async (req, res) => {
+router.post('/', authenticate, authorize('admin', 'moderator'), async (req, res) => {
     try {
         const badge = new Badges(req.body);
         await badge.save();
@@ -39,7 +42,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/badges/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, authorize('admin', 'moderator'), async (req, res) => {
     try {
         const badge = await Badges.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
         if (!badge) return errorResponse(res, ErrorCode.BADGE_NOT_FOUND);
@@ -50,7 +53,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/badges/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, authorize('admin', 'moderator'), async (req, res) => {
     try {
         const badge = await Badges.findByIdAndDelete(req.params.id);
         if (!badge) return errorResponse(res, ErrorCode.BADGE_NOT_FOUND);
@@ -61,11 +64,30 @@ router.delete('/:id', async (req, res) => {
 });
 
 // POST /api/badges/assign
-router.post('/assign', async (req, res) => {
+router.post('/assign', authenticate, authorize('admin', 'moderator'), async (req, res) => {
     try {
         const { userId, badgeId } = req.body;
         const userBadge = new UserBadges({ userId, badgeId });
         await userBadge.save();
+
+        // --- BİLDİRİM OLUŞTURMA VE GÖNDERME ---
+        try {
+            const badge = await Badges.findById(badgeId);
+            const notification = new Notifications({
+                userId: userId,
+                type: 'badge_earned',
+                message: `Tebrikler! '${badge ? badge.name : 'Yeni'}' rozetini kazandınız.`,
+                relatedId: badgeId,
+                relatedModel: 'Badges'
+            });
+            await notification.save();
+            
+            // SSE ile anlık gönder
+            SSEManager.sendToUser(userId, 'new_notification', notification);
+        } catch (notifErr) {
+            console.error('Rozet bildirimi hatası:', notifErr);
+        }
+
         successResponse(res, { statusCode: 201, ...SuccessCode.BADGE_ASSIGNED, data: userBadge });
     } catch (error) {
         if (error.code === 11000) return errorResponse(res, ErrorCode.BADGE_ALREADY_ASSIGNED);

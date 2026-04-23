@@ -4,6 +4,7 @@ const Tags = require('../db/models/Tags');
 const ErrorCode = require('../lib/ErrorCode');
 const SuccessCode = require('../lib/SuccessCode');
 const { successResponse, errorResponse } = require('../lib/ResponseHelper');
+const { authenticate, authorize } = require('../middleware/auth');
 
 // GET /api/tags
 router.get('/', async (req, res) => {
@@ -30,7 +31,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/tags
-router.post('/', async (req, res) => {
+router.post('/', authenticate, authorize('admin', 'moderator'), async (req, res) => {
     try {
         const tag = new Tags(req.body);
         await tag.save();
@@ -42,7 +43,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/tags/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, authorize('admin', 'moderator'), async (req, res) => {
     try {
         const tag = await Tags.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
         if (!tag) return errorResponse(res, ErrorCode.TAG_NOT_FOUND);
@@ -53,7 +54,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/tags/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, authorize('admin', 'moderator'), async (req, res) => {
     try {
         const tag = await Tags.findByIdAndDelete(req.params.id);
         if (!tag) return errorResponse(res, ErrorCode.TAG_NOT_FOUND);

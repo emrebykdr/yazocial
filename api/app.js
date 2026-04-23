@@ -12,6 +12,7 @@ const Logger = require('./lib/Logger');
 
 // Routes
 const usersRouter = require('./routes/users');
+const authRouter = require('./routes/auth');
 const questionsRouter = require('./routes/questions');
 const answersRouter = require('./routes/answers');
 const commentsRouter = require('./routes/comments');
@@ -47,6 +48,7 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // API Routes
+app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/questions', questionsRouter);
 app.use('/api/answers', answersRouter);
