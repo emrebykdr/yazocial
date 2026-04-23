@@ -4,6 +4,7 @@ const Questions = require('../db/models/Questions');
 const ErrorCode = require('../lib/ErrorCode');
 const SuccessCode = require('../lib/SuccessCode');
 const { successResponse, errorResponse } = require('../lib/ResponseHelper');
+const { authenticate } = require('../middleware/auth');
 
 // GET /api/questions
 router.get('/', async (req, res) => {
@@ -37,8 +38,9 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/questions
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
     try {
+        req.body.userId = req.user._id; // Zorunlu sahiplik
         const question = new Questions(req.body);
         await question.save();
         successResponse(res, { statusCode: 201, ...SuccessCode.QUESTION_CREATED, data: question });
@@ -48,21 +50,34 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/questions/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
     try {
-        const question = await Questions.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        const question = await Questions.findById(req.params.id);
         if (!question) return errorResponse(res, ErrorCode.QUESTION_NOT_FOUND);
-        successResponse(res, { ...SuccessCode.QUESTION_UPDATED, data: question });
+        
+        // Sahiplik kontrolü
+        if (question.userId.toString() !== req.user._id.toString() && !['admin', 'moderator'].includes(req.user.role)) {
+            return errorResponse(res, ErrorCode.FORBIDDEN);
+        }
+
+        const updatedQuestion = await Questions.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        successResponse(res, { ...SuccessCode.QUESTION_UPDATED, data: updatedQuestion });
     } catch (error) {
         errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
     }
 });
 
 // DELETE /api/questions/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
     try {
-        const question = await Questions.findByIdAndDelete(req.params.id);
+        const question = await Questions.findById(req.params.id);
         if (!question) return errorResponse(res, ErrorCode.QUESTION_NOT_FOUND);
+
+        if (question.userId.toString() !== req.user._id.toString() && !['admin', 'moderator'].includes(req.user.role)) {
+            return errorResponse(res, ErrorCode.FORBIDDEN);
+        }
+
+        await Questions.findByIdAndDelete(req.params.id);
         successResponse(res, SuccessCode.QUESTION_DELETED);
     } catch (error) {
         errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
@@ -70,13 +85,23 @@ router.delete('/:id', async (req, res) => {
 });
 
 // PUT /api/questions/:id/accept/:answerId
-router.put('/:id/accept/:answerId', async (req, res) => {
+router.put('/:id/accept/:answerId', authenticate, async (req, res) => {
     try {
-        const question = await Questions.findByIdAndUpdate(req.params.id, { acceptedAnswerId: req.params.answerId }, { new: true });
+        const question = await Questions.findById(req.params.id);
         if (!question) return errorResponse(res, ErrorCode.QUESTION_NOT_FOUND);
+
+        // Sadece soruyu soran kişi veya admin cevap kabul edebilir
+        if (question.userId.toString() !== req.user._id.toString() && !['admin', 'moderator'].includes(req.user.role)) {
+            return errorResponse(res, ErrorCode.FORBIDDEN);
+        }
+
+        question.acceptedAnswerId = req.params.answerId;
+        await question.save();
+
         const Answers = require('../db/models/Answers');
         await Answers.updateMany({ questionId: req.params.id }, { isAccepted: false });
         await Answers.findByIdAndUpdate(req.params.answerId, { isAccepted: true });
+        
         successResponse(res, { ...SuccessCode.ANSWER_ACCEPTED, data: question });
     } catch (error) {
         errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);

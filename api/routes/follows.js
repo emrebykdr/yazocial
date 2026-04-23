@@ -3,11 +3,20 @@ const router = express.Router();
 const Follows = require('../db/models/Follows');
 const ErrorCode = require('../lib/ErrorCode');
 const { successResponse, errorResponse } = require('../lib/ResponseHelper');
+const { authenticate } = require('../middleware/auth');
+const SSEManager = require('../lib/SSEManager');
+const Notifications = require('../db/models/Notifications');
 
 // POST /api/follows — toggle
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
     try {
-        const { followerId, followingId } = req.body;
+        const { followingId } = req.body;
+        const followerId = req.user._id;
+
+        if (followerId.toString() === followingId.toString()) {
+            return errorResponse(res, ErrorCode.VALIDATION_ERROR, 'Kendinizi takip edemezsiniz');
+        }
+
         const existing = await Follows.findOne({ followerId, followingId });
         if (existing) {
             await Follows.findByIdAndDelete(existing._id);
@@ -15,6 +24,24 @@ router.post('/', async (req, res) => {
         }
         const follow = new Follows({ followerId, followingId });
         await follow.save();
+
+        // --- BİLDİRİM OLUŞTURMA VE GÖNDERME ---
+        try {
+            const notification = new Notifications({
+                userId: followingId, // Bildirim takip edilen kişiye gider
+                type: 'new_follower',
+                message: `${req.user.username} sizi takip etmeye başladı.`,
+                relatedId: followerId,
+                relatedModel: 'Users'
+            });
+            await notification.save();
+            
+            // SSE ile anlık gönder
+            SSEManager.sendToUser(followingId, 'new_notification', notification);
+        } catch (notifErr) {
+            console.error('Takip bildirimi hatası:', notifErr);
+        }
+
         successResponse(res, { statusCode: 201, ...ErrorCode.FOLLOWED });
     } catch (error) {
         if (error.message.includes('kendini takip')) return errorResponse(res, ErrorCode.FOLLOW_SELF);

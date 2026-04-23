@@ -4,6 +4,7 @@ const Users = require('../db/models/Users');
 const ErrorCode = require('../lib/ErrorCode');
 const SuccessCode = require('../lib/SuccessCode');
 const { successResponse, errorResponse } = require('../lib/ResponseHelper');
+const { authenticate, authorize } = require('../middleware/auth');
 
 // GET /api/users
 router.get('/', async (req, res) => {
@@ -29,8 +30,8 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// POST /api/users
-router.post('/', async (req, res) => {
+// POST /api/users (Admin tarafından manuel kullanıcı ekleme)
+router.post('/', authenticate, authorize('admin'), async (req, res) => {
     try {
         const user = new Users(req.body);
         await user.save();
@@ -42,8 +43,20 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/users/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
     try {
+        if (req.params.id !== req.user._id.toString() && req.user.role !== 'admin') {
+            return errorResponse(res, ErrorCode.FORBIDDEN);
+        }
+
+        // Normal kullanıcılar kendi yetkilerini (role, reputation vb.) güncelleyememeli
+        if (req.user.role !== 'admin') {
+            delete req.body.role;
+            delete req.body.reputation;
+            delete req.body.level;
+            delete req.body.isActive;
+        }
+
         const user = await Users.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
         if (!user) return errorResponse(res, ErrorCode.USER_NOT_FOUND);
         successResponse(res, { ...SuccessCode.USER_UPDATED, data: user });
@@ -53,7 +66,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/users/:id (soft delete)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
     try {
         const user = await Users.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
         if (!user) return errorResponse(res, ErrorCode.USER_NOT_FOUND);
