@@ -18,8 +18,9 @@ const Badges = require('./db/models/Badges');
 const UserBadges = require('./db/models/UserBadges');
 const Notifications = require('./db/models/Notifications');
 const Follows = require('./db/models/Follows');
+const AuditLogs = require('./db/models/AuditLogs');
 
-const models = [Users, Questions, Answers, Comments, Votes, Tags, Articles, Projects, Badges, UserBadges, Notifications, Follows];
+const models = [Users, Questions, Answers, Comments, Votes, Tags, Articles, Projects, Badges, UserBadges, Notifications, Follows, AuditLogs];
 
 async function syncDatabase() {
     try {

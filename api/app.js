@@ -7,6 +7,9 @@ var logger = require('morgan');
 // Database
 const Database = require('./db/database');
 
+// Logger
+const Logger = require('../lib/Logger');
+
 // Routes
 const usersRouter = require('./routes/users');
 const questionsRouter = require('./routes/questions');
@@ -32,6 +35,13 @@ app.set('view engine', 'ejs');
 
 app.use(logger('dev'));
 app.use(express.json());
+
+// HTTP request duration logger
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => Logger.logRequest(req, res, Date.now() - start));
+    next();
+});
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));

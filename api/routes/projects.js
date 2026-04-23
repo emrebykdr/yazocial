@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Projects = require('../db/models/Projects');
+const ErrorCode = require('../../lib/ErrorCode');
+const SuccessCode = require('../../lib/SuccessCode');
+const { successResponse, errorResponse } = require('../../lib/ResponseHelper');
 
 // GET /api/projects
 router.get('/', async (req, res) => {
@@ -9,13 +12,12 @@ router.get('/', async (req, res) => {
         const filter = { status };
         if (tag) filter.tags = tag;
         const projects = await Projects.find(filter)
-            .populate('userId', 'username avatarUrl')
-            .populate('tags', 'name slug')
+            .populate('userId', 'username avatarUrl').populate('tags', 'name slug')
             .sort(sort).skip((page - 1) * limit).limit(parseInt(limit));
         const total = await Projects.countDocuments(filter);
-        res.json({ success: true, data: projects, pagination: { page: parseInt(page), limit: parseInt(limit), total } });
+        successResponse(res, { data: projects, pagination: { page: parseInt(page), limit: parseInt(limit), total } });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 
@@ -24,10 +26,10 @@ router.get('/:id', async (req, res) => {
     try {
         const project = await Projects.findById(req.params.id)
             .populate('userId', 'username avatarUrl').populate('tags', 'name slug');
-        if (!project) return res.status(404).json({ success: false, error: 'Proje bulunamadı' });
-        res.json({ success: true, data: project });
+        if (!project) return errorResponse(res, ErrorCode.PROJECT_NOT_FOUND);
+        successResponse(res, { data: project });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 
@@ -36,9 +38,9 @@ router.post('/', async (req, res) => {
     try {
         const project = new Projects(req.body);
         await project.save();
-        res.status(201).json({ success: true, data: project });
+        successResponse(res, { statusCode: 201, ...SuccessCode.PROJECT_CREATED, data: project });
     } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
     }
 });
 
@@ -46,10 +48,10 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const project = await Projects.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-        if (!project) return res.status(404).json({ success: false, error: 'Proje bulunamadı' });
-        res.json({ success: true, data: project });
+        if (!project) return errorResponse(res, ErrorCode.PROJECT_NOT_FOUND);
+        successResponse(res, { ...SuccessCode.PROJECT_UPDATED, data: project });
     } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
     }
 });
 
@@ -57,10 +59,10 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const project = await Projects.findByIdAndDelete(req.params.id);
-        if (!project) return res.status(404).json({ success: false, error: 'Proje bulunamadı' });
-        res.json({ success: true, message: 'Proje silindi' });
+        if (!project) return errorResponse(res, ErrorCode.PROJECT_NOT_FOUND);
+        successResponse(res, SuccessCode.PROJECT_DELETED);
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 

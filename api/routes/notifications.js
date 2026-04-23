@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const Notifications = require('../db/models/Notifications');
+const ErrorCode = require('../../lib/ErrorCode');
+const SuccessCode = require('../../lib/SuccessCode');
+const { successResponse, errorResponse } = require('../../lib/ResponseHelper');
 
-// GET /api/notifications?userId=xxx
+// GET /api/notifications
 router.get('/', async (req, res) => {
     try {
         const { userId, isRead, page = 1, limit = 30 } = req.query;
@@ -13,30 +16,30 @@ router.get('/', async (req, res) => {
             .sort('-createdAt').skip((page - 1) * limit).limit(parseInt(limit));
         const total = await Notifications.countDocuments(filter);
         const unreadCount = userId ? await Notifications.countDocuments({ userId, isRead: false }) : 0;
-        res.json({ success: true, data: notifications, unreadCount, pagination: { page: parseInt(page), limit: parseInt(limit), total } });
+        successResponse(res, { data: notifications, unreadCount, pagination: { page: parseInt(page), limit: parseInt(limit), total } });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 
-// PUT /api/notifications/:id/read — Bildirimi okundu yap
+// PUT /api/notifications/:id/read
 router.put('/:id/read', async (req, res) => {
     try {
         const notification = await Notifications.findByIdAndUpdate(req.params.id, { isRead: true, readAt: new Date() }, { new: true });
-        if (!notification) return res.status(404).json({ success: false, error: 'Bildirim bulunamadı' });
-        res.json({ success: true, data: notification });
+        if (!notification) return errorResponse(res, ErrorCode.NOTIFICATION_NOT_FOUND);
+        successResponse(res, SuccessCode.NOTIFICATION_READ);
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 
-// PUT /api/notifications/read-all — Tüm bildirimleri okundu yap
+// PUT /api/notifications/read-all/:userId
 router.put('/read-all/:userId', async (req, res) => {
     try {
         await Notifications.updateMany({ userId: req.params.userId, isRead: false }, { isRead: true, readAt: new Date() });
-        res.json({ success: true, message: 'Tüm bildirimler okundu olarak işaretlendi' });
+        successResponse(res, SuccessCode.NOTIFICATIONS_READ_ALL);
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 
@@ -45,9 +48,9 @@ router.post('/', async (req, res) => {
     try {
         const notification = new Notifications(req.body);
         await notification.save();
-        res.status(201).json({ success: true, data: notification });
+        successResponse(res, { statusCode: 201, data: notification });
     } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
     }
 });
 
@@ -55,10 +58,10 @@ router.post('/', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const notification = await Notifications.findByIdAndDelete(req.params.id);
-        if (!notification) return res.status(404).json({ success: false, error: 'Bildirim bulunamadı' });
-        res.json({ success: true, message: 'Bildirim silindi' });
+        if (!notification) return errorResponse(res, ErrorCode.NOTIFICATION_NOT_FOUND);
+        successResponse(res, SuccessCode.NOTIFICATION_DELETED);
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 

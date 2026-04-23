@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Articles = require('../db/models/Articles');
+const ErrorCode = require('../../lib/ErrorCode');
+const SuccessCode = require('../../lib/SuccessCode');
+const { successResponse, errorResponse } = require('../../lib/ResponseHelper');
 
 // GET /api/articles
 router.get('/', async (req, res) => {
@@ -9,13 +12,12 @@ router.get('/', async (req, res) => {
         const filter = { status };
         if (tag) filter.tags = tag;
         const articles = await Articles.find(filter)
-            .populate('userId', 'username avatarUrl')
-            .populate('tags', 'name slug')
+            .populate('userId', 'username avatarUrl').populate('tags', 'name slug')
             .sort(sort).skip((page - 1) * limit).limit(parseInt(limit));
         const total = await Articles.countDocuments(filter);
-        res.json({ success: true, data: articles, pagination: { page: parseInt(page), limit: parseInt(limit), total } });
+        successResponse(res, { data: articles, pagination: { page: parseInt(page), limit: parseInt(limit), total } });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 
@@ -24,10 +26,10 @@ router.get('/:id', async (req, res) => {
     try {
         const article = await Articles.findByIdAndUpdate(req.params.id, { $inc: { viewCount: 1 } }, { new: true })
             .populate('userId', 'username avatarUrl').populate('tags', 'name slug');
-        if (!article) return res.status(404).json({ success: false, error: 'Makale bulunamadı' });
-        res.json({ success: true, data: article });
+        if (!article) return errorResponse(res, ErrorCode.ARTICLE_NOT_FOUND);
+        successResponse(res, { data: article });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 
@@ -36,9 +38,9 @@ router.post('/', async (req, res) => {
     try {
         const article = new Articles(req.body);
         await article.save();
-        res.status(201).json({ success: true, data: article });
+        successResponse(res, { statusCode: 201, ...SuccessCode.ARTICLE_CREATED, data: article });
     } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
     }
 });
 
@@ -46,10 +48,10 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const article = await Articles.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-        if (!article) return res.status(404).json({ success: false, error: 'Makale bulunamadı' });
-        res.json({ success: true, data: article });
+        if (!article) return errorResponse(res, ErrorCode.ARTICLE_NOT_FOUND);
+        successResponse(res, { ...SuccessCode.ARTICLE_UPDATED, data: article });
     } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
     }
 });
 
@@ -57,10 +59,10 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const article = await Articles.findByIdAndDelete(req.params.id);
-        if (!article) return res.status(404).json({ success: false, error: 'Makale bulunamadı' });
-        res.json({ success: true, message: 'Makale silindi' });
+        if (!article) return errorResponse(res, ErrorCode.ARTICLE_NOT_FOUND);
+        successResponse(res, SuccessCode.ARTICLE_DELETED);
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 
