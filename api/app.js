@@ -8,7 +8,7 @@ var logger = require('morgan');
 const Database = require('./db/database');
 
 // Logger
-const Logger = require('../lib/Logger');
+const Logger = require('./lib/Logger');
 
 // Routes
 const usersRouter = require('./routes/users');

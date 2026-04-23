@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Follows = require('../db/models/Follows');
-const ErrorCode = require('../../lib/ErrorCode');
-const { successResponse, errorResponse } = require('../../lib/ResponseHelper');
+const ErrorCode = require('../lib/ErrorCode');
+const { successResponse, errorResponse } = require('../lib/ResponseHelper');
 
 // POST /api/follows — toggle
 router.post('/', async (req, res) => {

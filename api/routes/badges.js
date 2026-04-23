@@ -2,9 +2,9 @@ const express = require('express');
 const router = express.Router();
 const Badges = require('../db/models/Badges');
 const UserBadges = require('../db/models/UserBadges');
-const ErrorCode = require('../../lib/ErrorCode');
-const SuccessCode = require('../../lib/SuccessCode');
-const { successResponse, errorResponse } = require('../../lib/ResponseHelper');
+const ErrorCode = require('../lib/ErrorCode');
+const SuccessCode = require('../lib/SuccessCode');
+const { successResponse, errorResponse } = require('../lib/ResponseHelper');
 
 // GET /api/badges
 router.get('/', async (req, res) => {

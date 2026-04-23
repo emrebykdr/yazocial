@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Notifications = require('../db/models/Notifications');
-const ErrorCode = require('../../lib/ErrorCode');
-const SuccessCode = require('../../lib/SuccessCode');
-const { successResponse, errorResponse } = require('../../lib/ResponseHelper');
+const ErrorCode = require('../lib/ErrorCode');
+const SuccessCode = require('../lib/SuccessCode');
+const { successResponse, errorResponse } = require('../lib/ResponseHelper');
 
 // GET /api/notifications
 router.get('/', async (req, res) => {

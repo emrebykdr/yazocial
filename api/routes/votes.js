@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Votes = require('../db/models/Votes');
-const ErrorCode = require('../../lib/ErrorCode');
-const { successResponse, errorResponse } = require('../../lib/ResponseHelper');
+const ErrorCode = require('../lib/ErrorCode');
+const { successResponse, errorResponse } = require('../lib/ResponseHelper');
 
 // POST /api/votes — toggle mantığı
 router.post('/', async (req, res) => {

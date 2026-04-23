@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Tags = require('../db/models/Tags');
-const ErrorCode = require('../../lib/ErrorCode');
-const SuccessCode = require('../../lib/SuccessCode');
-const { successResponse, errorResponse } = require('../../lib/ResponseHelper');
+const ErrorCode = require('../lib/ErrorCode');
+const SuccessCode = require('../lib/SuccessCode');
+const { successResponse, errorResponse } = require('../lib/ResponseHelper');
 
 // GET /api/tags
 router.get('/', async (req, res) => {
