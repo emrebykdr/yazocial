@@ -1,5 +1,5 @@
 const Joi = require('joi');
-Joi.objectId = require('joi-objectid')(Joi); // Sadece gerekli alanlarda kullanmak için, ama kurmayalım şimdilik, string(hex(24)) yeter.
+
 
 // ObjectID (MongoDB id) doğrulaması için regex
 const objectIdPattern = /^[0-9a-fA-F]{24}$/;

@@ -165,7 +165,7 @@ class Logger {
     // DB'ye AuditLog kaydet (model ile birlikte kullanım)
     async logToDb(action, { userId = null, entityType = null, entityId = null, previousValue = null, newValue = null, ipAddress = null, userAgent = null, status = 'success', errorMessage = null, meta = null } = {}) {
         try {
-            const AuditLogs = require('./db/models/AuditLogs');
+            const AuditLogs = require('../db/models/AuditLogs');
             await AuditLogs.create({ userId, action, entityType, entityId, previousValue, newValue, ipAddress, userAgent, status, errorMessage, meta });
         } catch (err) {
             // DB'ye yazılamazsa sadece dosyaya yaz — kritik değil

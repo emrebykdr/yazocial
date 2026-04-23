@@ -3,6 +3,7 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+var cors = require('cors');
 
 // Database
 const Database = require('./db/database');
@@ -25,6 +26,7 @@ const notificationsRouter = require('./routes/notifications');
 const followsRouter = require('./routes/follows');
 
 var app = express();
+app.use(cors());
 
 // Database connection
 const db = new Database();

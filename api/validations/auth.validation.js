@@ -15,7 +15,9 @@ const register = Joi.object({
     password: Joi.string().min(6).required().messages({
         'string.min': 'Şifre en az 6 karakter olmalıdır.',
         'any.required': 'Şifre zorunludur.'
-    })
+    }),
+    firstName: Joi.string().max(50).optional().allow(''),
+    lastName: Joi.string().max(50).optional().allow('')
 });
 
 const login = Joi.object({
