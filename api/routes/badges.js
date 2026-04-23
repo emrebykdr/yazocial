@@ -2,14 +2,17 @@ const express = require('express');
 const router = express.Router();
 const Badges = require('../db/models/Badges');
 const UserBadges = require('../db/models/UserBadges');
+const ErrorCode = require('../../lib/ErrorCode');
+const SuccessCode = require('../../lib/SuccessCode');
+const { successResponse, errorResponse } = require('../../lib/ResponseHelper');
 
-// GET /api/badges — Tüm rozetleri listele
+// GET /api/badges
 router.get('/', async (req, res) => {
     try {
         const badges = await Badges.find().sort('name');
-        res.json({ success: true, data: badges });
+        successResponse(res, { data: badges });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 
@@ -17,10 +20,10 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const badge = await Badges.findById(req.params.id);
-        if (!badge) return res.status(404).json({ success: false, error: 'Rozet bulunamadı' });
-        res.json({ success: true, data: badge });
+        if (!badge) return errorResponse(res, ErrorCode.BADGE_NOT_FOUND);
+        successResponse(res, { data: badge });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 
@@ -29,9 +32,9 @@ router.post('/', async (req, res) => {
     try {
         const badge = new Badges(req.body);
         await badge.save();
-        res.status(201).json({ success: true, data: badge });
+        successResponse(res, { statusCode: 201, ...SuccessCode.BADGE_CREATED, data: badge });
     } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
     }
 });
 
@@ -39,10 +42,10 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const badge = await Badges.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-        if (!badge) return res.status(404).json({ success: false, error: 'Rozet bulunamadı' });
-        res.json({ success: true, data: badge });
+        if (!badge) return errorResponse(res, ErrorCode.BADGE_NOT_FOUND);
+        successResponse(res, { ...SuccessCode.BADGE_UPDATED, data: badge });
     } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
     }
 });
 
@@ -50,33 +53,33 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const badge = await Badges.findByIdAndDelete(req.params.id);
-        if (!badge) return res.status(404).json({ success: false, error: 'Rozet bulunamadı' });
-        res.json({ success: true, message: 'Rozet silindi' });
+        if (!badge) return errorResponse(res, ErrorCode.BADGE_NOT_FOUND);
+        successResponse(res, SuccessCode.BADGE_DELETED);
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 
-// POST /api/badges/assign — Kullanıcıya rozet ata
+// POST /api/badges/assign
 router.post('/assign', async (req, res) => {
     try {
         const { userId, badgeId } = req.body;
         const userBadge = new UserBadges({ userId, badgeId });
         await userBadge.save();
-        res.status(201).json({ success: true, data: userBadge });
+        successResponse(res, { statusCode: 201, ...SuccessCode.BADGE_ASSIGNED, data: userBadge });
     } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        if (error.code === 11000) return errorResponse(res, ErrorCode.BADGE_ALREADY_ASSIGNED);
+        errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
     }
 });
 
-// GET /api/badges/user/:userId — Kullanıcının rozetleri
+// GET /api/badges/user/:userId
 router.get('/user/:userId', async (req, res) => {
     try {
-        const userBadges = await UserBadges.find({ userId: req.params.userId })
-            .populate('badgeId');
-        res.json({ success: true, data: userBadges });
+        const userBadges = await UserBadges.find({ userId: req.params.userId }).populate('badgeId');
+        successResponse(res, { data: userBadges });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 
