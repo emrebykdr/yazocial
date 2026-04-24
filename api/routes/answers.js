@@ -49,19 +49,23 @@ router.post('/', authenticate, validate(answersValidation.create), async (req, r
         const question = await Questions.findByIdAndUpdate(req.body.questionId, { $inc: { answerCount: 1 } });
         
         // --- BİLDİRİM OLUŞTURMA VE GÖNDERME ---
-        // Eğer cevabı yazan kişi, soruyu soran kişi değilse bildirim gönder
-        if (question && question.userId.toString() !== req.user._id.toString()) {
-            const notification = new Notifications({
-                userId: question.userId,
-                type: 'new_answer',
-                message: `${req.user.username} sorunuza yeni bir cevap yazdı.`,
-                relatedId: req.body.questionId,
-                relatedModel: 'Questions'
-            });
-            await notification.save();
-            
-            // SSE ile anlık gönder
-            SSEManager.sendToUser(question.userId, 'new_notification', notification);
+        try {
+            // Eğer cevabı yazan kişi, soruyu soran kişi değilse bildirim gönder
+            if (question && question.userId.toString() !== req.user._id.toString()) {
+                const notification = new Notifications({
+                    userId: question.userId,
+                    type: 'new_answer',
+                    message: `${req.user.username} sorunuza yeni bir cevap yazdı.`,
+                    relatedId: req.body.questionId,
+                    relatedModel: 'Questions'
+                });
+                await notification.save();
+                
+                // SSE ile anlık gönder
+                SSEManager.sendToUser(question.userId, 'new_notification', notification);
+            }
+        } catch (notifErr) {
+            console.error('Cevap bildirimi hatası:', notifErr);
         }
 
         successResponse(res, { statusCode: 201, ...SuccessCode.ANSWER_CREATED, data: answer });

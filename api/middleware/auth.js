@@ -34,7 +34,12 @@ const authenticate = async (req, res, next) => {
 
         // Kullanıcı bilgisini req nesnesine ekle
         req.user = user;
-        next();
+        if (typeof next === 'function') {
+            next();
+        } else {
+            console.error('Auth Error: next is not a function');
+            return errorResponse(res, ErrorCode.INTERNAL_ERROR, 'Internal Server Error (Middleware Chain Broken)');
+        }
     } catch (error) {
         if (error.name === 'TokenExpiredError') {
             return errorResponse(res, { ...ErrorCode.UNAUTHORIZED, message: 'Oturum süresi doldu, lütfen tekrar giriş yapın' });

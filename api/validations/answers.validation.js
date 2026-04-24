@@ -7,14 +7,14 @@ const create = Joi.object({
         'string.pattern.base': 'Geçersiz soru ID formatı.',
         'any.required': 'Soru ID zorunludur.'
     }),
-    body: Joi.string().min(10).required().messages({
+    content: Joi.string().min(10).required().messages({
         'string.min': 'Cevap içeriği en az 10 karakter olmalıdır.',
         'any.required': 'Cevap içeriği zorunludur.'
     })
 });
 
 const update = Joi.object({
-    body: Joi.string().min(10).required().messages({
+    content: Joi.string().min(10).required().messages({
         'string.min': 'Cevap içeriği en az 10 karakter olmalıdır.',
         'any.required': 'Güncellenecek içerik zorunludur.'
     })

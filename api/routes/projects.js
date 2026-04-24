@@ -9,9 +9,16 @@ const { authenticate } = require('../middleware/auth');
 // GET /api/projects
 router.get('/', async (req, res) => {
     try {
-        const { page = 1, limit = 20, sort = '-createdAt', status = 'active', tag } = req.query;
+        const { page = 1, limit = 20, sort = '-createdAt', status = 'active', tag, search } = req.query;
         const filter = { status };
         if (tag) filter.tags = tag;
+        if (search) {
+            filter.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } },
+                { name: { $regex: search, $options: 'i' } }
+            ];
+        }
         const projects = await Projects.find(filter)
             .populate('userId', 'username avatarUrl').populate('tags', 'name slug')
             .sort(sort).skip((page - 1) * limit).limit(parseInt(limit));
@@ -34,15 +41,36 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+const TagHelper = require('../lib/TagHelper');
+
 // POST /api/projects
 router.post('/', authenticate, async (req, res) => {
     try {
         req.body.userId = req.user._id;
+
+        // Hashtagleri ayıkla ve mevcut etiketlerle birleştir
+        const titleTags = TagHelper.extractHashtags(req.body.title || '');
+        const contentTags = TagHelper.extractHashtags(req.body.content || '');
+        // Unique yap ve max 5 etiket sınırını koru
+        const allTags = [...(req.body.tags || []), ...titleTags, ...contentTags];
+        const uniqueTags = [...new Set(allTags.filter(t => typeof t === 'string').map(t => t.toLowerCase()))].slice(0, 5);
+        req.body.tags = uniqueTags;
+
+        // Etiketleri işle
+        if (req.body.tags && Array.isArray(req.body.tags)) {
+            req.body.tags = await TagHelper.syncTags(req.body.tags);
+        }
+
         const project = new Projects(req.body);
         await project.save();
         successResponse(res, { statusCode: 201, ...SuccessCode.PROJECT_CREATED, data: project });
     } catch (error) {
-        errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
+        console.error('Project Creation Error:', error);
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(e => e.message).join(', ');
+            return errorResponse(res, ErrorCode.VALIDATION_ERROR, messages);
+        }
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 

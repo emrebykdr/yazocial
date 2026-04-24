@@ -1,0 +1,221 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/auth.store';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
+import { api } from '../services/api';
+import Card from '../components/ui/Card';
+import Input from '../components/ui/Input';
+import Button from '../components/ui/Button';
+import { Eye, Edit3, Send, AlertCircle } from 'lucide-react';
+import TagInput from '../components/ui/TagInput';
+
+export default function AskQuestion() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuthStore();
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [manualTags, setManualTags] = useState([]);
+  const [extractedTags, setExtractedTags] = useState([]);
+  const [mode, setMode] = useState('edit'); // 'edit' or 'preview'
+  const [error, setError] = useState('');
+  const [showTagInput, setShowTagInput] = useState(false);
+
+  // Twitter tarzı hashtag ayıklama - Otomatik senkronizasyon
+  React.useEffect(() => {
+    const hashtagRegex = /#([a-zA-Z0-9çğıöşüÇĞİÖŞÜ_]+)/g;
+    const fromTitle = title.match(hashtagRegex) || [];
+    const fromBody = body.match(hashtagRegex) || [];
+    
+    const allHashtags = [...fromTitle, ...fromBody]
+      .map(tag => tag.slice(1).toLowerCase());
+    
+    // Sadece tam kelimeleri ayıkla (duplikasyonu önlemek için direkt overwrite et)
+    setExtractedTags([...new Set(allHashtags)]);
+  }, [title, body]);
+
+  // Görüntülenecek ve gönderilecek birleşik etiketler
+  const combinedTags = [...new Set([...manualTags, ...extractedTags])].slice(0, 5);
+
+  const mutation = useMutation({
+    mutationFn: async (newQuestion) => {
+      const res = await api.post('/questions', newQuestion);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      // BUG 4 FIX: React Query v5 API — object formatı zorunlu
+      queryClient.invalidateQueries({ queryKey: ['questions'] });
+      navigate(`/questions/${data.data._id}`);
+    },
+    onError: (err) => {
+      const backendError = err.response?.data?.error; // "Doğrulama hatası"
+      const backendDetails = err.response?.data?.details; // Gerçek hata mesajı
+      setError(backendDetails || backendError || 'Soru gönderilirken bir hata oluştu.');
+    }
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (!isAuthenticated) {
+      setError('Soru sormak için giriş yapmalısınız! Giriş sayfasına yönlendiriliyorsunuz...');
+      setTimeout(() => navigate('/login'), 2000);
+      return;
+    }
+
+    if (title.length < 10) return setError('Başlık en az 10 karakter olmalıdır.');
+    if (body.length < 20) return setError('İçerik en az 20 karakter olmalıdır.');
+    
+    mutation.mutate({ title, content: body, tags: combinedTags });
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-black tracking-tighter text-textPrimary uppercase">Yeni Bir Soru Sor</h1>
+      </div>
+
+      <Card className="p-0 overflow-hidden border-border/50">
+        <form onSubmit={handleSubmit} className="divide-y divide-border/30">
+          {/* Title Section */}
+          <div className="p-6 bg-surface2/10">
+            <Input
+              label="Başlık"
+              placeholder="Sorunun özeti nedir?"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="bg-transparent text-lg font-bold"
+            />
+          </div>
+
+          {/* Editor Controls */}
+          <div className="px-4 py-2 bg-surface2/30 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMode('edit')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-black transition-colors ${mode === 'edit' ? 'bg-primary text-white' : 'text-textSecondary hover:bg-surfaceHover'}`}
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              DÜZENLE
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('preview')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-black transition-colors ${mode === 'preview' ? 'bg-primary text-white' : 'text-textSecondary hover:bg-surfaceHover'}`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              ÖNİZLEME
+            </button>
+          </div>
+
+          {/* Body Content */}
+          <div className="min-h-[300px]">
+            {mode === 'edit' ? (
+              <textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Sorunu detaylandır. Kod örnekleri için markdown kullanabilirsin..."
+                className="w-full min-h-[300px] p-6 bg-transparent text-textPrimary placeholder:text-textSecondary/30 focus:outline-none resize-none leading-relaxed text-sm"
+              />
+            ) : (
+              <div className="p-6 prose prose-invert max-w-none prose-sm sm:prose-base prose-headings:tracking-tighter prose-a:text-primary">
+                {body ? (
+                   <ReactMarkdown>{body}</ReactMarkdown>
+                ) : (
+                   <p className="text-textSecondary italic italic">Önizlenecek bir şey yok...</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Tags Section */}
+          <div className="p-6 bg-surface2/5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black text-textSecondary uppercase tracking-widest flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-primary rounded-full" />
+                Etiketler
+              </h3>
+              <button 
+                type="button"
+                onClick={() => setShowTagInput(!showTagInput)}
+                className="text-[10px] font-black text-primary hover:underline uppercase tracking-tighter"
+              >
+                {showTagInput ? 'MANUEL GİRİŞİ GİZLE' : 'MANUEL ETİKET EKLE'}
+              </button>
+            </div>
+            
+            {showTagInput && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                <TagInput tags={manualTags} setTags={setManualTags} placeholder="Örn: react, javascript, hata..." />
+              </div>
+            )}
+
+            {/* Seçili etiketleri her zaman göster */}
+            <div className="flex flex-wrap gap-2 mt-2">
+              {combinedTags.map(t => (
+                <span key={t} className="px-2 py-0.5 bg-primary/10 border border-primary/20 rounded text-primary text-[10px] font-bold flex items-center gap-1">
+                  #{t}
+                  {showTagInput && manualTags.includes(t) && (
+                    <button 
+                      type="button" 
+                      onClick={() => setManualTags(manualTags.filter(tag => tag !== t))}
+                      className="hover:text-danger ml-1"
+                    >
+                      ×
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer Actions */}
+          <div className="p-4 bg-surface2/20 flex items-center justify-between gap-4">
+            {error && (
+              <div className="flex items-center gap-2 text-danger text-[10px] font-black uppercase tracking-widest animate-pulse">
+                <AlertCircle className="w-4 h-4" />
+                {error}
+              </div>
+            )}
+            <div className="flex items-center gap-2 ml-auto">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => navigate('/')}
+              >
+                İPTAL
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={mutation.isPending}
+                className="flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                {mutation.isPending ? 'GÖNDERİLİYOR...' : 'YAYINLA'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Card>
+
+      <div className="bg-surface2/20 border border-border/30 rounded-lg p-6 space-y-4">
+        <h3 className="text-xs font-black text-textSecondary uppercase tracking-[3px]">İyi bir soru sormak için 3 ipucu</h3>
+        <ul className="space-y-2">
+          <li className="text-xs text-textSecondary flex items-start gap-2">
+            <span className="text-primary font-black">01.</span>
+            Net ve açıklayıcı bir başlık kullan.
+          </li>
+          <li className="text-xs text-textSecondary flex items-start gap-2">
+            <span className="text-primary font-black">02.</span>
+            Markdown kullanarak kodlarını renklendir.
+          </li>
+          <li className="text-xs text-textSecondary flex items-start gap-2">
+            <span className="text-primary font-black">03.</span>
+            Sorunun neden kaynaklandığını ve neleri denediğini anlat.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
