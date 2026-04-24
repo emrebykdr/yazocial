@@ -8,11 +8,10 @@ const FollowSchema = new mongoose.Schema({
 });
 
 // Prevent self-follow
-FollowSchema.pre('save', function(next) {
+FollowSchema.pre('save', async function() {
     if (this.followerId.equals(this.followingId)) {
-        return next(new Error('Kullanıcı kendini takip edemez'));
+        throw new Error('Kullanıcı kendini takip edemez');
     }
-    next();
 });
 
 // Ensure a user can only follow another user once

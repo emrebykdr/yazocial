@@ -9,11 +9,29 @@ const { authenticate, authorize } = require('../middleware/auth');
 // GET /api/users
 router.get('/', async (req, res) => {
     try {
-        const { page = 1, limit = 20, sort = '-createdAt' } = req.query;
-        const users = await Users.find({ isActive: true })
+        const { page = 1, limit = 20, sort = '-createdAt', search } = req.query;
+        const filter = { isActive: true };
+        if (search) {
+            filter.$or = [
+                { username: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } }
+            ];
+        }
+        const users = await Users.find(filter)
             .sort(sort).skip((page - 1) * limit).limit(parseInt(limit));
-        const total = await Users.countDocuments({ isActive: true });
+        const total = await Users.countDocuments(filter);
         successResponse(res, { data: users, pagination: { page: parseInt(page), limit: parseInt(limit), total } });
+    } catch (error) {
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
+    }
+});
+
+// GET /api/users/profile
+router.get('/profile', authenticate, async (req, res) => {
+    try {
+        const user = await Users.findById(req.user.id || req.user._id);
+        if (!user) return errorResponse(res, ErrorCode.USER_NOT_FOUND);
+        successResponse(res, { data: user });
     } catch (error) {
         errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }

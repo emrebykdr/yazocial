@@ -3,10 +3,14 @@ const mongoose = require('mongoose');
 const ProjectSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
     title: { type: String, required: true, trim: true },
-    description: { type: String, maxlength: 2000 },
+    name: { type: String, trim: true },
+    description: { type: String, maxlength: 500 },
+    body: { type: String },
     githubUrl: { type: String },
+    liveUrl: { type: String },
     demoUrl: { type: String },
     thumbnailUrl: { type: String, default: null },
+    technologies: [{ type: String }],
     tags: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tags' }],
     score: { type: Number, default: 0 },
     status: { 

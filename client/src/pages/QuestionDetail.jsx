@@ -3,13 +3,17 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/auth.store';
-import { MessageSquare, ThumbsUp, User, Clock, Loader2, Send } from 'lucide-react';
+import { MessageSquare, ThumbsUp, User, Clock, Loader2, Send, ChevronUp, ChevronDown, Share2, Trash2, MoreHorizontal } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 export default function QuestionDetail() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const { isAuthenticated, user: currentUser } = useAuthStore();
   const [answerBody, setAnswerBody] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const navigate = require('react-router-dom').useNavigate();
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   // Soru ve Cevapları Getir
   const { data: response, isLoading, isError } = useQuery({
@@ -32,45 +36,158 @@ export default function QuestionDetail() {
     }
   });
 
+  // Oylama İşlemi
+  const voteMutation = useMutation({
+    mutationFn: async ({ postType, postId, voteType }) => {
+      const res = await api.post('/votes', { postType, postId, voteType });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['question', id] });
+    }
+  });
+
+  // Soru Silme İşlemi
+  const deleteQuestionMutation = useMutation({
+    mutationFn: async () => {
+      await api.delete(`/questions/${id}`);
+    },
+    onSuccess: () => {
+      navigate('/');
+    }
+  });
+
+  // Cevap Silme İşlemi
+  const deleteAnswerMutation = useMutation({
+    mutationFn: async (answerId) => {
+      await api.delete(`/answers/${answerId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['question', id] });
+    }
+  });
+
+  const handleVote = (e, postType, postId, voteType) => {
+    e.stopPropagation();
+    if (!isAuthenticated) return alert("Oylama yapmak için giriş yapmalısınız.");
+    voteMutation.mutate({ postType, postId, voteType });
+  };
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    alert("Bağlantı kopyalandı!");
+  };
+
+  const handleDeleteQuestion = () => {
+    if (window.confirm("Bu soruyu silmek istediğinize emin misiniz?")) {
+      deleteQuestionMutation.mutate();
+    }
+  };
+
+  const handleDeleteAnswer = (answerId) => {
+    if (window.confirm("Bu cevabı silmek istediğinize emin misiniz?")) {
+      deleteAnswerMutation.mutate(answerId);
+    }
+  };
+
   if (isLoading) return <div className="text-center py-20 text-textSecondary animate-pulse text-lg">Yükleniyor...</div>;
   if (isError) return <div className="text-center py-20 text-danger">Soru bulunamadı veya bir hata oluştu.</div>;
 
   const question = response?.data;
   const answers = question?.answers || [];
 
+
+
   const handleAnswerSubmit = (e) => {
     e.preventDefault();
-    if (!answerBody.trim()) return;
-    answerMutation.mutate({ questionId: id, body: answerBody });
+    setSubmitError('');
+    if (answerBody.trim().length < 10) {
+      setSubmitError('Cevabınız en az 10 karakter olmalıdır.');
+      return;
+    }
+    answerMutation.mutate({ questionId: id, content: answerBody });
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
       {/* Soru Bölümü */}
-      <section className="space-y-4">
-        <h1 className="text-3xl font-bold text-textPrimary leading-tight">{question.title}</h1>
+      <section className="space-y-6">
+        <h1 className="text-3xl font-bold text-textPrimary leading-tight font-sans tracking-tight">{question.title}</h1>
         
-        <div className="flex items-center gap-4 text-sm text-textSecondary border-b border-border pb-4">
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-4 h-4" />
+        <div className="flex items-center gap-6 text-xs text-textSecondary border-b border-border pb-6 uppercase tracking-widest font-bold">
+          <div className="flex items-center gap-2 group cursor-default">
+            <Clock className="w-3.5 h-3.5 group-hover:text-primary transition-colors" />
             <span>{new Date(question.createdAt).toLocaleDateString('tr-TR')}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <User className="w-4 h-4" />
-            <span className="text-primary font-medium">{question.userId?.username || 'yazociol_user'}</span>
+          <div className="flex items-center gap-2 group cursor-pointer">
+            <User className="w-3.5 h-3.5 group-hover:text-primary transition-colors" />
+            <span className="hover:text-primary transition-colors">u/{question.userId?.username || 'yazociol_user'}</span>
           </div>
         </div>
 
-        <div className="text-textPrimary leading-relaxed text-lg whitespace-pre-wrap pt-2">
-          {question.body}
+        <div className="prose prose-invert max-w-none prose-headings:tracking-tighter prose-a:text-primary pt-2">
+          <ReactMarkdown>{question.content}</ReactMarkdown>
         </div>
 
         <div className="flex gap-2 pt-4">
           {question.tags?.map((tag, idx) => (
-            <span key={idx} className="bg-surface2 px-3 py-1 rounded-full text-xs text-textSecondary border border-border">
+            <span key={idx} className="bg-surface2 px-3 py-1 rounded-full text-xs text-textSecondary border border-border uppercase tracking-tighter font-black">
               #{tag.name || 'yazılım'}
             </span>
           ))}
+        </div>
+
+        {/* Question Footer Actions */}
+        <div className="flex items-center justify-between pt-6 border-t border-border/50">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 bg-surface2/50 rounded-full border border-border/50 px-1 py-0.5">
+              <button onClick={(e) => handleVote(e, 'Questions', question._id, 'Up')} className="p-1.5 hover:bg-primary/20 hover:text-primary rounded-full text-textSecondary transition-colors">
+                <ChevronUp className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-black text-textPrimary min-w-[20px] text-center">{question.voteScore || 0}</span>
+              <button onClick={(e) => handleVote(e, 'Questions', question._id, 'Down')} className="p-1.5 hover:bg-danger/20 hover:text-danger rounded-full text-textSecondary transition-colors">
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            </div>
+
+            <button className="flex items-center gap-1.5 px-3 py-1.5 bg-surface2/50 border border-border/50 rounded-full text-xs font-black text-textSecondary uppercase tracking-tighter cursor-default">
+              <MessageSquare className="w-4 h-4" />
+              {question.answerCount || 0}
+            </button>
+          </div>
+
+          <div 
+            className="flex items-center gap-2 relative"
+            onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpenMenuId(null); }}
+          >
+            <button 
+              onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === 'question' ? null : 'question'); }}
+              className="p-2 hover:bg-surfaceHover rounded-full text-textSecondary transition-colors"
+            >
+              <MoreHorizontal className="w-5 h-5" />
+            </button>
+
+            {openMenuId === 'question' && (
+              <div className="absolute bottom-full right-0 mb-2 w-36 bg-surface border border-border rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <button 
+                  onClick={() => { setOpenMenuId(null); handleShare(); }} 
+                  className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold hover:bg-surfaceHover text-textSecondary hover:text-primary transition-colors text-left"
+                >
+                  <Share2 className="w-4 h-4" />
+                  Paylaş
+                </button>
+                {isAuthenticated && (currentUser?.role === 'admin' || currentUser?._id === question.userId?._id) && (
+                  <button 
+                    onClick={() => { setOpenMenuId(null); handleDeleteQuestion(); }} 
+                    className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold hover:bg-danger/10 text-danger transition-colors text-left border-t border-border/50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Sil
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -96,13 +213,47 @@ export default function QuestionDetail() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 text-textSecondary bg-surface2 px-3 py-1 rounded-full text-sm">
-                  <ThumbsUp className="w-4 h-4" />
-                  <span>{answer.score || 0}</span>
+                
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-surface2/50 rounded-full border border-border/50 px-1 py-0.5">
+                    <button onClick={(e) => handleVote(e, 'Answers', answer._id, 'Up')} className="p-1 hover:bg-primary/20 hover:text-primary rounded-full text-textSecondary transition-colors">
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-xs font-black text-textPrimary min-w-[20px] text-center">{answer.voteScore || answer.score || 0}</span>
+                    <button onClick={(e) => handleVote(e, 'Answers', answer._id, 'Down')} className="p-1 hover:bg-danger/20 hover:text-danger rounded-full text-textSecondary transition-colors">
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  
+                  {isAuthenticated && (currentUser?.role === 'admin' || currentUser?._id === answer.userId?._id) && (
+                    <div 
+                      className="relative"
+                      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpenMenuId(null); }}
+                    >
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === answer._id ? null : answer._id); }}
+                        className="p-1.5 hover:bg-surfaceHover rounded-full text-textSecondary transition-colors"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+
+                      {openMenuId === answer._id && (
+                        <div className="absolute top-full right-0 mt-2 w-32 bg-surface border border-border rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in slide-in-from-top-2 duration-200">
+                          <button 
+                            onClick={() => { setOpenMenuId(null); handleDeleteAnswer(answer._id); }} 
+                            className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold hover:bg-danger/10 text-danger transition-colors text-left"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Sil
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="text-textPrimary leading-relaxed whitespace-pre-wrap">
-                {answer.body}
+              <div className="prose prose-invert prose-sm max-w-none prose-a:text-primary pl-11">
+                <ReactMarkdown>{answer.content}</ReactMarkdown>
               </div>
             </div>
           ))}
@@ -120,6 +271,11 @@ export default function QuestionDetail() {
               value={answerBody}
               onChange={(e) => setAnswerBody(e.target.value)}
             />
+            {submitError && (
+              <div className="text-danger text-xs font-bold animate-pulse">
+                {submitError}
+              </div>
+            )}
             <div className="flex justify-end">
               <button
                 type="submit"

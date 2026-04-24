@@ -11,10 +11,16 @@ const questionsValidation = require('../validations/questions.validation');
 // GET /api/questions
 router.get('/', async (req, res) => {
     try {
-        const { page = 1, limit = 20, sort = '-createdAt', status, tag } = req.query;
+        const { page = 1, limit = 20, sort = '-createdAt', status, tag, search } = req.query;
         const filter = {};
         if (status) filter.status = status;
         if (tag) filter.tags = tag;
+        if (search) {
+            filter.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { content: { $regex: search, $options: 'i' } }
+            ];
+        }
         const questions = await Questions.find(filter)
             .populate('userId', 'username avatarUrl reputation')
             .populate('tags', 'name slug')
@@ -31,7 +37,12 @@ router.get('/:id', async (req, res) => {
     try {
         const question = await Questions.findByIdAndUpdate(req.params.id, { $inc: { viewCount: 1 } }, { new: true })
             .populate('userId', 'username avatarUrl reputation')
-            .populate('tags', 'name slug').populate('acceptedAnswerId');
+            .populate('tags', 'name slug')
+            .populate('acceptedAnswerId')
+            .populate({
+                path: 'answers',
+                populate: { path: 'userId', select: 'username avatarUrl reputation' }
+            });
         if (!question) return errorResponse(res, ErrorCode.QUESTION_NOT_FOUND);
         successResponse(res, { data: question });
     } catch (error) {
@@ -39,15 +50,35 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+const TagHelper = require('../lib/TagHelper');
+
 // POST /api/questions
 router.post('/', authenticate, validate(questionsValidation.create), async (req, res) => {
     try {
         req.body.userId = req.user._id; // Zorunlu sahiplik
+        
+        // BUG 5 FIX: Frontend zaten birleşik tag listesini gönderiyor.
+        // Backend'de tekrar hashtag çıkarmak gereksiz DB sorgusuna yol açıyordu.
+        // Sadece string kontrolü yapıp doğrudan syncTags'e gönderiyoruz.
+        const incomingTags = Array.isArray(req.body.tags)
+            ? req.body.tags.filter(t => typeof t === 'string').slice(0, 5)
+            : [];
+
+        // Tag isimlerini ObjectId'ye çevir, yoksa oluştur
+        req.body.tags = await TagHelper.syncTags(incomingTags);
+
         const question = new Questions(req.body);
         await question.save();
         successResponse(res, { statusCode: 201, ...SuccessCode.QUESTION_CREATED, data: question });
     } catch (error) {
-        errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
+        console.error('Question Creation Error:', error);
+        // BUG 3 FIX: Hata tipine göre doğru HTTP kodu döndür.
+        // Mongoose ValidationError → 400, diğerleri → 500
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(e => e.message).join(', ');
+            return errorResponse(res, ErrorCode.VALIDATION_ERROR, messages);
+        }
+        errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);
     }
 });
 

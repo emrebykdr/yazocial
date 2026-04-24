@@ -19,12 +19,12 @@ const NotificationSchema = new mongoose.Schema({
     message: { type: String, required: true },
     isRead: { type: Boolean, default: false },
     readAt: { type: Date, default: null },
-    relatedPostType: { 
+    relatedModel: { 
         type: String, 
-        enum: ['Questions', 'Answers', 'Articles', 'Projects', null], 
+        enum: ['Questions', 'Answers', 'Articles', 'Projects', 'Users', 'Badges', null], 
         default: null 
     },
-    relatedPostId: { type: mongoose.Schema.Types.ObjectId, default: null }
+    relatedId: { type: mongoose.Schema.Types.ObjectId, default: null }
 }, { 
     timestamps: true 
 });

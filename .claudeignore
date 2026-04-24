@@ -1,0 +1,22 @@
+# Gereksiz Klasörler
+node_modules/
+.git/
+bin/
+obj/
+dist/
+build/
+.vs/
+.idea/
+
+# Medya ve Loglar
+*.png
+*.jpg
+*.svg
+*.log
+*.pdf
+
+# Bağımlılık Kilitleme Dosyaları (Okumasına gerek yok)
+package-lock.json
+yarn.lock
+*.suo
+*.user

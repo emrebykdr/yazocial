@@ -9,9 +9,15 @@ const { authenticate } = require('../middleware/auth');
 // GET /api/articles
 router.get('/', async (req, res) => {
     try {
-        const { page = 1, limit = 20, sort = '-createdAt', status = 'published', tag } = req.query;
+        const { page = 1, limit = 20, sort = '-createdAt', status = 'published', tag, search } = req.query;
         const filter = { status };
         if (tag) filter.tags = tag;
+        if (search) {
+            filter.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { content: { $regex: search, $options: 'i' } }
+            ];
+        }
         const articles = await Articles.find(filter)
             .populate('userId', 'username avatarUrl').populate('tags', 'name slug')
             .sort(sort).skip((page - 1) * limit).limit(parseInt(limit));
@@ -34,14 +40,31 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+const TagHelper = require('../lib/TagHelper');
+
 // POST /api/articles
 router.post('/', authenticate, async (req, res) => {
     try {
         req.body.userId = req.user._id;
+
+        // Hashtagleri ayıkla ve mevcut etiketlerle birleştir
+        const titleTags = TagHelper.extractHashtags(req.body.title || '');
+        const contentTags = TagHelper.extractHashtags(req.body.content || '');
+        // Unique yap ve max 5 etiket sınırını koru
+        const allTags = [...(req.body.tags || []), ...titleTags, ...contentTags];
+        const uniqueTags = [...new Set(allTags.filter(t => typeof t === 'string').map(t => t.toLowerCase()))].slice(0, 5);
+        req.body.tags = uniqueTags;
+
+        // Etiketleri işle
+        if (req.body.tags && Array.isArray(req.body.tags)) {
+            req.body.tags = await TagHelper.syncTags(req.body.tags);
+        }
+
         const article = new Articles(req.body);
         await article.save();
         successResponse(res, { statusCode: 201, ...SuccessCode.ARTICLE_CREATED, data: article });
     } catch (error) {
+        console.error('Article Creation Error:', error);
         errorResponse(res, ErrorCode.VALIDATION_ERROR, error.message);
     }
 });

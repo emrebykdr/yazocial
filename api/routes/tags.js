@@ -9,10 +9,10 @@ const { authenticate, authorize } = require('../middleware/auth');
 // GET /api/tags
 router.get('/', async (req, res) => {
     try {
-        const { search } = req.query;
+        const { search, limit = 10, sort = '-usageCount' } = req.query;
         const filter = {};
         if (search) filter.name = { $regex: search, $options: 'i' };
-        const tags = await Tags.find(filter).sort('name');
+        const tags = await Tags.find(filter).sort(sort).limit(parseInt(limit));
         successResponse(res, { data: tags });
     } catch (error) {
         errorResponse(res, ErrorCode.INTERNAL_ERROR, error.message);

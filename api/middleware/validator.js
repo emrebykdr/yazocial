@@ -23,7 +23,12 @@ const validate = (schema, source = 'body') => {
 
         // Doğrulanmış ve temizlenmiş veriyi req nesnesine geri koy
         req[source] = value;
-        next();
+        if (typeof next === 'function') {
+            next();
+        } else {
+            console.error('Validator Error: next is not a function');
+            return errorResponse(res, ErrorCode.INTERNAL_ERROR, 'Internal Server Error (Middleware Chain Broken)');
+        }
     };
 };
 

@@ -22,20 +22,39 @@ const QuestionSchema = new mongoose.Schema({
         default: 'open' 
     }
 }, { 
-    timestamps: true 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+});
+
+// Virtual for answers
+QuestionSchema.virtual('answers', {
+    ref: 'Answers',
+    localField: '_id',
+    foreignField: 'questionId'
 });
 
 // Generate slug from title before saving
-QuestionSchema.pre('save', function(next) {
+QuestionSchema.pre('save', async function() {
     if (this.isModified('title')) {
-        this.slug = this.title
+        // Turkish character mapping
+        const trMap = {
+            'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u',
+            'Ç': 'c', 'Ğ': 'g', 'İ': 'i', 'Ö': 'o', 'Ş': 's', 'Ü': 'u'
+        };
+
+        let slugBase = this.title;
+        Object.keys(trMap).forEach(key => {
+            slugBase = slugBase.replace(new RegExp(key, 'g'), trMap[key]);
+        });
+
+        this.slug = slugBase
             .toLowerCase()
             .replace(/[^a-z0-9\s-]/g, '')
             .replace(/\s+/g, '-')
             .replace(/-+/g, '-')
             .substring(0, 100) + '-' + Date.now().toString(36);
     }
-    next();
 });
 
 // Indexes for performance
