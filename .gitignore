@@ -5,3 +5,4 @@ ANALIZ_RAPORU.md
 image.png
 .token
 .claudeignore
+*.log  
