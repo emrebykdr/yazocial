@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { api } from '../services/api';
 import { TrendingUp, MessageSquare, ChevronUp, ChevronDown, Clock, Tag } from 'lucide-react';
 
@@ -31,6 +32,10 @@ export default function Popular() {
 
   return (
     <div className="space-y-6">
+      <Helmet>
+        <title>Popüler İçerikler · Yazocial</title>
+        <meta name="description" content="Yazocial'daki en popüler sorular ve trend etiketler." />
+      </Helmet>
       <div className="flex items-center gap-3 bg-surface p-4 rounded-2xl border border-border">
         <TrendingUp className="w-6 h-6 text-primary" />
         <h1 className="text-2xl font-black tracking-tight">Popüler İçerikler</h1>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { Helmet } from 'react-helmet-async';
 import { api } from '../services/api';
 import { Compass, Search, Tag, User, HelpCircle, FileText, Briefcase, Clock, MessageSquare, ChevronUp } from 'lucide-react';
 
@@ -90,6 +91,10 @@ export default function Explore() {
 
   return (
     <div className="space-y-6">
+      <Helmet>
+        <title>{currentQuery ? `"${currentQuery}" — Keşfet` : 'Keşfet'} · Yazocial</title>
+        <meta name="description" content="Yazocial'daki sorular, makaleler, kullanıcılar ve etiketlerde arama yapın." />
+      </Helmet>
       <div className="bg-surface p-6 rounded-2xl border border-border shadow-sm text-center space-y-4">
         <div className="flex items-center justify-center gap-2 text-primary mb-2">
           <Compass className="w-8 h-8" />

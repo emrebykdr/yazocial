@@ -2,25 +2,29 @@ import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { useQuery } from '@tanstack/react-query';
+import { useNotifications } from '../context/NotificationContext';
 import { api } from '../services/api';
-import { 
-  Home, 
-  TrendingUp, 
-  Compass, 
-  Plus, 
-  Bell, 
+import {
+  Home,
+  TrendingUp,
+  Compass,
+  Plus,
+  Bell,
   Search,
   Users,
   Info,
   LogOut,
   ShieldCheck,
   FileText,
-  Briefcase
+  Briefcase,
+  MessageCircle,
+  Bookmark
 } from 'lucide-react';
 
 export default function MainLayout() {
   const { isAuthenticated, logout, user } = useAuthStore();
   const location = useLocation();
+  const { unreadCount } = useNotifications();
 
   // Popüler Etiketleri Getir
   const { data: tagsResponse } = useQuery({
@@ -46,8 +50,10 @@ export default function MainLayout() {
     { name: 'Ana Sayfa', path: '/', icon: Home },
     { name: 'Makaleler', path: '/articles', icon: FileText },
     { name: 'Projeler', path: '/projects', icon: Briefcase },
+    { name: 'Topluluklar', path: '/communities', icon: Users },
     { name: 'Popüler', path: '/popular', icon: TrendingUp },
     { name: 'Keşfet', path: '/explore', icon: Compass },
+    ...(isAuthenticated ? [{ name: 'Kaydedilenler', path: '/bookmarks', icon: Bookmark }] : []),
   ];
 
   return (
@@ -80,9 +86,16 @@ export default function MainLayout() {
           <div className="flex items-center gap-2">
             {isAuthenticated ? (
               <>
+                <Link to="/messages" className="p-2 hover:bg-surfaceHover rounded-full transition-colors relative" title="Mesajlar">
+                  <MessageCircle className="w-5 h-5" />
+                </Link>
                 <Link to="/notifications" className="p-2 hover:bg-surfaceHover rounded-full transition-colors relative">
                   <Bell className="w-5 h-5" />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full border border-surface"></span>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-primary text-white text-[10px] font-black rounded-full flex items-center justify-center border border-surface px-0.5">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
                 <Link to="/ask" className="flex items-center gap-1.5 bg-surfaceHover hover:bg-border px-3 py-1.5 rounded-full text-sm font-bold transition-all">
                   <Plus className="w-4 h-4" />

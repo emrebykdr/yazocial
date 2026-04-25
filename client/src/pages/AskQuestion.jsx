@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -7,7 +8,7 @@ import { api } from '../services/api';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Eye, Edit3, Send, AlertCircle } from 'lucide-react';
+import { Eye, Edit3, Send, AlertCircle, Upload, Loader2 } from 'lucide-react';
 import TagInput from '../components/ui/TagInput';
 
 export default function AskQuestion() {
@@ -21,6 +22,26 @@ export default function AskQuestion() {
   const [mode, setMode] = useState('edit'); // 'edit' or 'preview'
   const [error, setError] = useState('');
   const [showTagInput, setShowTagInput] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef(null);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await api.post('/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const mdImage = `\n![görsel](${res.data.url})\n`;
+      setBody(prev => prev + mdImage);
+    } catch (err) {
+      setError('Görsel yüklenemedi: ' + (err.response?.data?.details || err.message));
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
 
   // Twitter tarzı hashtag ayıklama - Otomatik senkronizasyon
   React.useEffect(() => {
@@ -72,6 +93,10 @@ export default function AskQuestion() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      <Helmet>
+        <title>Soru Sor — Yazocial</title>
+        <meta name="description" content="Yazılım sorunlarını Yazocial'da paylaş, topluluktan yardım al." />
+      </Helmet>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-black tracking-tighter text-textPrimary uppercase">Yeni Bir Soru Sor</h1>
       </div>
@@ -107,6 +132,18 @@ export default function AskQuestion() {
               <Eye className="w-3.5 h-3.5" />
               ÖNİZLEME
             </button>
+            <div className="ml-auto">
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black text-textSecondary hover:bg-surfaceHover transition-colors disabled:opacity-50"
+              >
+                {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                GÖRSEL
+              </button>
+            </div>
           </div>
 
           {/* Body Content */}

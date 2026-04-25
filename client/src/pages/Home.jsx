@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
@@ -79,6 +80,10 @@ export default function Home() {
 
   return (
     <div className="space-y-4">
+      <Helmet>
+        <title>Ana Sayfa — Yazocial</title>
+        <meta name="description" content="Yazılımcıların bir araya geldiği soru-cevap ve makale platformu." />
+      </Helmet>
       {/* Create Post Card - Serious Mode */}
       <div className="bg-surface border border-border rounded-xl p-3 flex items-center gap-3 mb-10 shadow-sm">
         <div className="w-8 h-8 bg-surface2 rounded-full flex items-center justify-center text-textSecondary overflow-hidden border border-border">

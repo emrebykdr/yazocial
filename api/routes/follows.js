@@ -4,8 +4,7 @@ const Follows = require('../db/models/Follows');
 const ErrorCode = require('../lib/ErrorCode');
 const { successResponse, errorResponse } = require('../lib/ResponseHelper');
 const { authenticate } = require('../middleware/auth');
-const SSEManager = require('../lib/SSEManager');
-const Notifications = require('../db/models/Notifications');
+const NotificationService = require('../services/NotificationService');
 
 // POST /api/follows — toggle
 router.post('/', authenticate, async (req, res) => {
@@ -25,22 +24,13 @@ router.post('/', authenticate, async (req, res) => {
         const follow = new Follows({ followerId, followingId });
         await follow.save();
 
-        // --- BİLDİRİM OLUŞTURMA VE GÖNDERME ---
-        try {
-            const notification = new Notifications({
-                userId: followingId, // Bildirim takip edilen kişiye gider
-                type: 'new_follower',
-                message: `${req.user.username} sizi takip etmeye başladı.`,
-                relatedId: followerId,
-                relatedModel: 'Users'
-            });
-            await notification.save();
-            
-            // SSE ile anlık gönder
-            SSEManager.sendToUser(followingId, 'new_notification', notification);
-        } catch (notifErr) {
-            console.error('Takip bildirimi hatası:', notifErr);
-        }
+        await NotificationService.send(req.app, {
+            userId: followingId,
+            type: 'new_follower',
+            message: `${req.user.username} sizi takip etmeye başladı.`,
+            relatedId: followerId,
+            relatedModel: 'Users'
+        });
 
         successResponse(res, { statusCode: 201, ...ErrorCode.FOLLOWED });
     } catch (error) {

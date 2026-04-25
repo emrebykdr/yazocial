@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
@@ -6,7 +7,7 @@ import { api } from '../services/api';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Eye, Edit3, Send, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { Eye, Edit3, Send, AlertCircle, Image as ImageIcon, Loader2, Upload } from 'lucide-react';
 import TagInput from '../components/ui/TagInput';
 
 export default function CreateArticle() {
@@ -19,6 +20,26 @@ export default function CreateArticle() {
   const [mode, setMode] = useState('edit');
   const [error, setError] = useState('');
   const [showTagInput, setShowTagInput] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef(null);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await api.post('/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const mdImage = `\n![görsel](${res.data.url})\n`;
+      setBody(prev => prev + mdImage);
+    } catch (err) {
+      setError('Görsel yüklenemedi: ' + (err.response?.data?.details || err.message));
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
 
   // Twitter tarzı hashtag ayıklama
   React.useEffect(() => {
@@ -58,6 +79,10 @@ export default function CreateArticle() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      <Helmet>
+        <title>Makale Oluştur — Yazocial</title>
+        <meta name="description" content="Yazılım deneyimlerini Yazocial'da makaleleştir ve toplulukla paylaş." />
+      </Helmet>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-black tracking-tighter text-textPrimary uppercase">Yeni Makale Oluştur</h1>
       </div>
@@ -73,10 +98,12 @@ export default function CreateArticle() {
               className="bg-transparent text-3xl font-black tracking-tighter"
             />
             <div className="flex items-center gap-4">
-               <Button type="button" variant="outline" className="text-[10px] flex items-center gap-2">
-                 <ImageIcon className="w-3.5 h-3.5" /> KAPAK RESMİ EKLE
+               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+               <Button type="button" variant="outline" className="text-[10px] flex items-center gap-2" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                 {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                 {uploading ? 'YÜKLENİYOR...' : 'GÖRSEL EKLE'}
                </Button>
-               <span className="text-[10px] font-black text-textSecondary uppercase tracking-widest italic opacity-50">Kapak resmi özelliği yakında...</span>
+               <span className="text-[10px] text-textSecondary opacity-50">Maks. 5MB · JPEG, PNG, GIF, WEBP</span>
             </div>
           </div>
 

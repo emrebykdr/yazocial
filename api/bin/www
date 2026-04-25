@@ -7,6 +7,11 @@
 var app = require('../app');
 var debug = require('debug')('api:server');
 var http = require('http');
+var { Server } = require('socket.io');
+var jwt = require('jsonwebtoken');
+var Users = require('../db/models/Users');
+var CommunityMembers = require('../db/models/CommunityMembers');
+var ChatMessages = require('../db/models/ChatMessages');
 
 /**
  * Get port from environment and store in Express.
@@ -21,9 +26,58 @@ app.set('port', port);
 
 var server = http.createServer(app);
 
-/**
- * Listen on provided port, on all network interfaces.
- */
+// Socket.IO kurulumu
+var io = new Server(server, {
+  cors: { origin: process.env.CLIENT_URL || 'http://localhost:5173', methods: ['GET', 'POST'], credentials: true }
+});
+
+// Token ile kimlik doğrulama
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+    if (!token) return next(new Error('Kimlik doğrulama gerekli'));
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await Users.findById(decoded.id);
+    if (!user || !user.isActive) return next(new Error('Geçersiz kullanıcı'));
+    socket.user = user;
+    next();
+  } catch (e) {
+    next(new Error('Geçersiz token'));
+  }
+});
+
+io.on('connection', (socket) => {
+  // Kullanıcıya özel oda — bildirimler için
+  socket.join(`user:${socket.user._id}`);
+
+  // Topluluk chat odasına katıl
+  socket.on('join_community', async (communityId) => {
+    const membership = await CommunityMembers.findOne({ communityId, userId: socket.user._id }).catch(() => null);
+    if (membership) socket.join(`community:${communityId}`);
+  });
+
+  // Topluluk chat mesajı gönder
+  socket.on('send_community_message', async ({ communityId, content }) => {
+    if (!content?.trim()) return;
+    const membership = await CommunityMembers.findOne({ communityId, userId: socket.user._id }).catch(() => null);
+    if (!membership) return socket.emit('error', 'Topluluğa üye değilsiniz.');
+    try {
+      const msg = await ChatMessages.create({ communityId, userId: socket.user._id, content: content.trim() });
+      await msg.populate('userId', 'username avatarUrl');
+      io.to(`community:${communityId}`).emit('community_message', msg);
+    } catch (e) {}
+  });
+
+  // DM odasına katıl
+  socket.on('join_dm', (conversationId) => {
+    socket.join(`dm:${conversationId}`);
+  });
+
+  socket.on('disconnect', () => {});
+});
+
+// io'yu app'e ekle (routes erişebilsin)
+app.set('io', io);
 
 server.listen(port);
 server.on('error', onError);

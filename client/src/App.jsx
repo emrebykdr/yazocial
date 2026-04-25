@@ -20,13 +20,14 @@ import CreateProject from './pages/CreateProject';
 import Notifications from './pages/Notifications';
 import Popular from './pages/Popular';
 import Explore from './pages/Explore';
+import Communities from './pages/Communities';
+import CommunityDetail from './pages/CommunityDetail';
+import PostDetail from './pages/PostDetail';
+import DirectMessages from './pages/DirectMessages';
+import Bookmarks from './pages/Bookmarks';
 import { useAuthStore } from './store/auth.store';
-import { useNotifications } from './hooks/useNotifications';
-
-const NotificationListener = () => {
-  useNotifications();
-  return null;
-};
+import { NotificationProvider } from './context/NotificationContext';
+import { connectSocket, disconnectSocket } from './services/socket';
 
 // Standart Giriş Koruması
 const PrivateRoute = ({ children }) => {
@@ -51,14 +52,16 @@ function App() {
   useEffect(() => {
     if (token) {
       api.get('/users/profile')
-        .then(res => setAuth(res.data.data, token))
-        .catch(() => logout());
+        .then(res => { setAuth(res.data.data, token); connectSocket(token); })
+        .catch(() => { logout(); disconnectSocket(); });
+    } else {
+      disconnectSocket();
     }
   }, [token, setAuth, logout]);
 
   return (
     <BrowserRouter>
-      <NotificationListener />
+      <NotificationProvider>
       <Routes>
         {/* Ana Uygulama Rotaları */}
         <Route element={<MainLayout />}>
@@ -105,6 +108,12 @@ function App() {
 
           <Route path="/popular" element={<Popular />} />
           <Route path="/explore" element={<Explore />} />
+          <Route path="/communities" element={<Communities />} />
+          <Route path="/communities/:id" element={<CommunityDetail />} />
+          <Route path="/communities/posts/:postId" element={<PostDetail />} />
+          <Route path="/messages" element={<PrivateRoute><DirectMessages /></PrivateRoute>} />
+          <Route path="/messages/:conversationId" element={<PrivateRoute><DirectMessages /></PrivateRoute>} />
+          <Route path="/bookmarks" element={<PrivateRoute><Bookmarks /></PrivateRoute>} />
         </Route>
 
         {/* Admin Paneli Rotaları */}
@@ -120,6 +129,7 @@ function App() {
 
         <Route path="*" element={<div className="text-center py-20 text-2xl font-bold">404</div>} />
       </Routes>
+      </NotificationProvider>
     </BrowserRouter>
   );
 }

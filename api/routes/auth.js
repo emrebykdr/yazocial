@@ -1,6 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { success: false, error: 'Çok fazla deneme. 15 dakika sonra tekrar deneyin.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 const Users = require('../db/models/Users');
 const ErrorCode = require('../lib/ErrorCode');
 const SuccessCode = require('../lib/SuccessCode');
@@ -12,7 +21,7 @@ const authValidation = require('../validations/auth.validation');
 /**
  * POST /api/auth/register
  */
-router.post('/register', validate(authValidation.register), async (req, res) => {
+router.post('/register', authLimiter, validate(authValidation.register), async (req, res) => {
     try {
         const { username, email, password, firstName, lastName } = req.body;
 
@@ -50,7 +59,7 @@ router.post('/register', validate(authValidation.register), async (req, res) => 
 /**
  * POST /api/auth/login
  */
-router.post('/login', validate(authValidation.login), async (req, res) => {
+router.post('/login', authLimiter, validate(authValidation.login), async (req, res) => {
     try {
         const { identifier, password } = req.body; // identifier = username veya email olabilir
 

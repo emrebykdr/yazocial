@@ -12,9 +12,10 @@ router.get('/', async (req, res) => {
         const { page = 1, limit = 20, sort = '-createdAt', search } = req.query;
         const filter = { isActive: true };
         if (search) {
+            const safe = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             filter.$or = [
-                { username: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } }
+                { username: { $regex: safe, $options: 'i' } },
+                { email: { $regex: safe, $options: 'i' } }
             ];
         }
         const users = await Users.find(filter)
