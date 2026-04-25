@@ -1,4 +1,5 @@
 import React from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -32,6 +33,10 @@ export default function ArticleDetail() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
+      <Helmet>
+        <title>{article.title} — Yazocial</title>
+        <meta name="description" content={article.content?.slice(0, 160)} />
+      </Helmet>
       <Link to="/articles" className="inline-flex items-center gap-2 text-xs font-black text-textSecondary hover:text-primary transition-colors uppercase tracking-widest">
         <ChevronLeft className="w-4 h-4" /> GERİ DÖN
       </Link>

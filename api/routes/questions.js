@@ -16,9 +16,10 @@ router.get('/', async (req, res) => {
         if (status) filter.status = status;
         if (tag) filter.tags = tag;
         if (search) {
+            const safe = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             filter.$or = [
-                { title: { $regex: search, $options: 'i' } },
-                { content: { $regex: search, $options: 'i' } }
+                { title: { $regex: safe, $options: 'i' } },
+                { content: { $regex: safe, $options: 'i' } }
             ];
         }
         const questions = await Questions.find(filter)

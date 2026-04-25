@@ -5,8 +5,7 @@ const ErrorCode = require('../lib/ErrorCode');
 const SuccessCode = require('../lib/SuccessCode');
 const { successResponse, errorResponse } = require('../lib/ResponseHelper');
 const { authenticate } = require('../middleware/auth');
-const SSEManager = require('../lib/SSEManager');
-const Notifications = require('../db/models/Notifications');
+const NotificationService = require('../services/NotificationService');
 const mongoose = require('mongoose');
 const validate = require('../middleware/validator');
 const commentsValidation = require('../validations/comments.validation');
@@ -48,28 +47,19 @@ router.post('/', authenticate, validate(commentsValidation.create), async (req, 
         await comment.save();
         const populated = await comment.populate('userId', 'username avatarUrl');
 
-        // --- BİLDİRİM OLUŞTURMA VE GÖNDERME ---
         try {
-            // parentModel (Questions, Answers, Articles) importu ve sorgusu
             const ParentModel = mongoose.model(req.body.postType);
             const parentDoc = await ParentModel.findById(req.body.postId);
-
             if (parentDoc && parentDoc.userId.toString() !== req.user._id.toString()) {
-                const notification = new Notifications({
+                await NotificationService.send(req.app, {
                     userId: parentDoc.userId,
                     type: 'new_comment',
                     message: `${req.user.username} içeriğinize yorum yaptı.`,
                     relatedId: req.body.postId,
                     relatedModel: req.body.postType
                 });
-                await notification.save();
-                
-                // SSE ile anlık gönder
-                SSEManager.sendToUser(parentDoc.userId, 'new_notification', notification);
             }
-        } catch (notifErr) {
-            console.error('Yorum bildirimi hatası:', notifErr);
-        }
+        } catch (_) {}
 
         successResponse(res, { statusCode: 201, ...SuccessCode.COMMENT_CREATED, data: populated });
     } catch (error) {

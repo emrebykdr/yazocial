@@ -24,9 +24,17 @@ const projectsRouter = require('./routes/projects');
 const badgesRouter = require('./routes/badges');
 const notificationsRouter = require('./routes/notifications');
 const followsRouter = require('./routes/follows');
+const bookmarksRouter = require('./routes/bookmarks');
+const uploadRouter = require('./routes/upload');
+const communitiesRouter = require('./routes/communities');
+const postsRouter = require('./routes/posts');
+const conversationsRouter = require('./routes/conversations');
 
 var app = express();
-app.use(cors());
+app.use(cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    credentials: true,
+}));
 
 // Database connection
 const db = new Database();
@@ -62,6 +70,11 @@ app.use('/api/projects', projectsRouter);
 app.use('/api/badges', badgesRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/follows', followsRouter);
+app.use('/api/bookmarks', bookmarksRouter);
+app.use('/api/upload', uploadRouter);
+app.use('/api/communities', communitiesRouter);
+app.use('/api/posts', postsRouter);
+app.use('/api/conversations', conversationsRouter);
 
 // API Health Check
 app.get('/api', (req, res) => {
@@ -80,7 +93,8 @@ app.get('/api', (req, res) => {
             '/api/projects',
             '/api/badges',
             '/api/notifications',
-            '/api/follows'
+            '/api/follows',
+            '/api/bookmarks'
         ]
     });
 });

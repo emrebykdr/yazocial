@@ -1,19 +1,36 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/auth.store';
-import { MessageSquare, ThumbsUp, User, Clock, Loader2, Send, ChevronUp, ChevronDown, Share2, Trash2, MoreHorizontal } from 'lucide-react';
+import { MessageSquare, ThumbsUp, User, Clock, Loader2, Send, ChevronUp, ChevronDown, Share2, Trash2, MoreHorizontal, Bookmark } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 export default function QuestionDetail() {
   const { id } = useParams();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { isAuthenticated, user: currentUser } = useAuthStore();
   const [answerBody, setAnswerBody] = useState('');
   const [submitError, setSubmitError] = useState('');
-  const navigate = require('react-router-dom').useNavigate();
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [bookmarked, setBookmarked] = useState(false);
+
+  const bookmarkMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post('/bookmarks', { postId: id, postType: 'Questions' });
+      return res.data;
+    },
+    onSuccess: (data) => setBookmarked(data.bookmarked)
+  });
+
+  React.useEffect(() => {
+    if (!isAuthenticated || !id) return;
+    api.get(`/bookmarks/check?postId=${id}&postType=Questions`)
+      .then(res => setBookmarked(res.data.bookmarked))
+      .catch(() => {});
+  }, [id, isAuthenticated]);
 
   // Soru ve Cevapları Getir
   const { data: response, isLoading, isError } = useQuery({
@@ -110,6 +127,10 @@ export default function QuestionDetail() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
+      <Helmet>
+        <title>{question.title} — Yazocial</title>
+        <meta name="description" content={question.content?.slice(0, 160)} />
+      </Helmet>
       {/* Soru Bölümü */}
       <section className="space-y-6">
         <h1 className="text-3xl font-bold text-textPrimary leading-tight font-sans tracking-tight">{question.title}</h1>
@@ -154,6 +175,17 @@ export default function QuestionDetail() {
               <MessageSquare className="w-4 h-4" />
               {question.answerCount || 0}
             </button>
+
+            {isAuthenticated && (
+              <button
+                onClick={() => bookmarkMutation.mutate()}
+                disabled={bookmarkMutation.isPending}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border transition-colors ${bookmarked ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-surface2/50 border-border/50 text-textSecondary hover:text-primary hover:border-primary/40'}`}
+              >
+                <Bookmark className={`w-4 h-4 ${bookmarked ? 'fill-current' : ''}`} />
+                {bookmarked ? 'Kaydedildi' : 'Kaydet'}
+              </button>
+            )}
           </div>
 
           <div 
